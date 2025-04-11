@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Analyzer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Resume Analyzer</h1>
+        <p>Upload your resume (PDF or text) to analyze skills and content.</p>
+        
+        <form id="resumeForm">
+            <input type="file" id="resumeInput" accept=".pdf,.txt" required>
+            <button type="submit">Analyze Resume</button>
+        </form>
+        
+        <div id="results" class="hidden">
+            <h2>Analysis Results</h2>
+            <p><strong>Skills Detected:</strong> <span id="skills"></span></p>
+            <p><strong>Summary:</strong> <span id="summary"></span></p>
+            <p><strong>Recommendations:</strong> <span id="recommendations"></span></p>
+        </div>
+        <div id="error" class="hidden"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
