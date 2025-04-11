@@ -2,7 +2,7 @@
 @kalpathon2025
 
 ### Resume-Analyzer:
-A simple web app to analyze resume using AI, built with HTML, CSS, and JavaScript.
+A static website to analyze resume using AI, built with HTML, CSS, and JavaScript.
 
 
 ### Features:
