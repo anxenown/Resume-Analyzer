@@ -25,4 +25,4 @@ A static website to analyze resume using AI, built with HTML, CSS, and JavaScrip
 https://anxenown.github.io/Resume-Analyzer/index.html
 
 ### Repo Link:
-https://anxenown.github.io/Resume-Analyzer
+https://github.com/anxenown/Resume-Analyzer
