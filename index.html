@@ -1,30 +1,194 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resume Analyzer</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <div class="container">
-        <h1>Resume Analyzer</h1>
-        <p>Upload your resume (PDF or text) to analyze skills and content.</p>
-        
-        <form id="resumeForm">
-            <input type="file" id="resumeInput" accept=".pdf,.txt" required>
-            <button type="submit">Analyze Resume</button>
-        </form>
-        
-        <div id="results" class="hidden">
-            <h2>Analysis Results</h2>
-            <p><strong>Skills Detected:</strong> <span id="skills"></span></p>
-            <p><strong>Summary:</strong> <span id="summary"></span></p>
-            <p><strong>Recommendations:</strong> <span id="recommendations"></span></p>
-        </div>
-        <div id="error" class="hidden"></div>
-    </div>
-    <script src="script.js"></script>
+    <title>AI Resume Analyzer</title>
+    <link href="https://fonts.googleapis.com/css?family=Merriweather&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.3/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://npmcdn.com/pdfjs-dist@2.9.359/web/pdf_viewer.css">
+    <style>
+        body {
+            font-family: "Merriweather", serif;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        h1 {
+            text-align: center;
+        }
+    </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.min.js"></script>
+    <script src="https://npmcdn.com/pdfjs-dist@2.9.359/web/pdf_viewer.js"></script>
+</head>
+
+<body class="bg-gray-100">
+    <div class="container mx-auto py-10 px-4">
+        <h1 class="text-4xl font-bold mb-5">AI Resume Analyzer</h1>
+        <div class="flex flex-wrap -mx-4">
+            <div class="w-full lg:w-1/2 px-4">
+                <form id="resumeForm" class="bg-white p-6 rounded shadow-lg">
+                    <div id="resumeTextContainer" class="mb-4 hidden">
+                        <label for="resume" class="block text-sm font-medium">Resume text:</label>
+                        <textarea id="resume" rows="10"
+                            class="w-full p-2 mt-1 border border-gray-200 rounded"></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label for="uploadResume" class="block text-sm font-medium">Upload Resume (PDF):</label>
+                        <input type="file" id="uploadResume" class="mt-1" accept="application/pdf">
+                    </div>
+                    <button type="submit" id="analyzeButton"
+                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-800 hidden">Analyze!</button>
+                </form>
+                <section id="output" class="bg-white p-6 mt-8 mb-10 rounded shadow-lg text-gray-900"></section>
+            </div>
+            <div class="w-full lg:w-1/2 px-4">
+                <div id="pdfPreview" class="bg-white p-6 rounded shadow-lg h-[500px] overflow-auto"></div>
+                <div class="flex justify-center mt-4">
+                    <button id="previousButton"
+                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-800 mr-4 hidden">Previous</button>
+                    <button id="nextButton"
+                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-800 hidden">Next</button>
+                </div>
+                <p id="pageInfo" class="text-center mt-2 hidden"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let pdf;
+        let currentPage = 1;
+
+        function updatePageInfo() {
+            const pageInfo = document.getElementById("pageInfo");
+            pageInfo.innerText = `${currentPage} / ${pdf.numPages}`;
+            pageInfo.classList.toggle("hidden", pdf.numPages === 1);
+        }
+
+        async function updatePdfView() {
+            document.getElementById("previousButton").disabled = currentPage <= 1;
+            document.getElementById("nextButton").disabled = currentPage >= pdf.numPages;
+
+            updatePageInfo();
+
+            const page = await pdf.getPage(currentPage);
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+            const viewport = page.getViewport({ scale: 1.0 });
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport,
+            };
+
+            await page.render(renderContext);
+            const pdfPreview = document.getElementById("pdfPreview");
+            pdfPreview.innerHTML = '';
+            pdfPreview.appendChild(canvas);
+        }
+
+        document.getElementById("previousButton").addEventListener("click", () => {
+            currentPage--;
+            updatePdfView();
+        });
+
+        document.getElementById("nextButton").addEventListener("click", () => {
+            currentPage++;
+            updatePdfView();
+        });
+
+        document.getElementById("resumeForm").addEventListener("submit", (event) => {
+            event.preventDefault();
+            const promptTemplate = "Analyze the given resume text and return the GPA, years of experiences, 1 sentence summary of the candidate and a list of initial screen questions: {Resume text}";
+            const resumeText = document.getElementById("resume").value;
+
+            if (!resumeText.trim()) {
+                alert('No text was extracted from your PDF. Try with a different file.');
+                return;
+            }
+
+            const substitutedPrompt = promptTemplate.replace("{Resume text}", resumeText);
+
+            console.log(substitutedPrompt);
+
+            const output = document.getElementById("output");
+            output.innerText = "";
+
+            const ws = new WebSocket(`wss://backend.buildpicoapps.com/ask_ai_streaming_v2`);
+
+            ws.addEventListener("open", () => {
+                ws.send(
+                    JSON.stringify({
+                        appId: "capital-staff",
+                        prompt: substitutedPrompt
+                    })
+                );
+            });
+
+            ws.addEventListener("message", (event) => {
+                output.innerText = `${output.innerText}${event.data}`;
+            });
+
+            ws.addEventListener("close", (event) => {
+                console.log("Connection closed", event.code, event.reason);
+                if (event.code != 1000) {
+                    alert("Oops, we ran into an error. Refresh the page and try again.");
+                }
+            });
+
+            ws.addEventListener("error", (error) => {
+                console.log('WebSocket error', error);
+                alert("Oops, we ran into an error. Refresh the page and try again.");
+            });
+        });
+
+        document.getElementById("uploadResume").addEventListener("change", async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const pdfBuffer = await file.arrayBuffer();
+                pdf = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
+                let extractedText = '';
+
+                for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+                    const page = await pdf.getPage(pageNumber);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+
+                    extractedText += `${pageText} `;
+                }
+
+                document.getElementById("resume").value = extractedText.trim();
+
+                // Hide file input and textarea
+                document.getElementById("resumeTextContainer").classList.add("hidden");
+                document.getElementById("uploadResume").classList.add("hidden");
+                document.getElementById("analyzeButton").classList.remove("hidden");
+
+                // Display the PDF preview
+                currentPage = 1;
+                await updatePdfView();
+
+                // Show the previous/next buttons and page info, if resume has more than 1 page
+                if (pdf.numPages > 1) {
+                    document.getElementById("previousButton").classList.remove("hidden");
+                    document.getElementById("nextButton").classList.remove("hidden");
+                } else {
+                    document.getElementById("previousButton").classList.add("hidden");
+                    document.getElementById("nextButton").classList.add("hidden");
+                }
+
+            } catch (error) {
+                console.error('Error extracting text from PDF', error);
+                alert("Oops, we couldn't extract text from this PDF. Please try another file.");
+            }
+        });
+    </script>
 </body>
+
 </html>
