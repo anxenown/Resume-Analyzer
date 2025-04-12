@@ -6,7 +6,7 @@
 As users find it hard to know what skills or experience they’re missing for their dream roles. How can an AI system help users analyze their resume and suggest personalized improvements or learning paths?
 
 ### Resume-Analyzer:
-The AI Resume Analyzer is a web-based application designed to assist job seekers in optimizing their resumes by leveraging AI-driven analysis and ATS (Applicant Tracking System) compatibility checks. Built with a clean, responsive interface using HTML, Tailwind CSS, and JavaScript, it supports resume uploads in PDF and image formats (PNG, JPEG), extracts text, and provides actionable insights to improve job application success rates. Below is an overview of the project’s introduction, features, and potential future scope, tailored to the provided codebase and its enhancements (ATS scoring, suggestions, image support, and contact cards).
+The AI Resume Analyzer is a static website designed to assist job seekers in optimizing their resumes by leveraging AI-driven analysis and ATS (Applicant Tracking System) compatibility checks. Built with a clean, responsive interface using HTML, Tailwind CSS, and JavaScript, it supports resume uploads in PDF and image formats (PNG, JPEG), extracts text, and provides actionable insights to improve job application success rates. Below is an overview of the project’s introduction, features, and potential future scope, tailored to the provided codebase and its enhancements (ATS scoring, suggestions, image support, and contact cards).
 
 
 ### Workflow:
