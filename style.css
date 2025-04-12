@@ -19,7 +19,10 @@ body {
     transform: translateY(-5px);
     box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
 }
-
+.contact-card:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
 h1 {
     font-weight: 700;
     text-align: center;
@@ -64,6 +67,45 @@ textarea:focus {
 .fade-in {
     animation: fadeIn 0.5s ease-in;
 }
+.ats-score {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.ats-bar {
+    height: 12px;
+    border-radius: 6px;
+    background: #e5e7eb;
+    overflow: hidden;
+}
+
+.ats-bar-fill {
+    height: 100%;
+    transition: width 0.5s ease;
+}
+
+.ats-bar-fill.low {
+    background: #ef4444;
+}
+.ats-bar-fill.medium {
+    background: #f59e0b;
+}
+
+.ats-bar-fill.high {
+    background: #10b981;
+}
+
+.error-message {
+    background: #fee2e2;
+    color: #b91c1c;
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 16px;
+}
+#pdfProgress {
+    transition: width 0.3s ease;
+}
 
 @keyframes fadeIn {
     from {
@@ -92,3 +134,19 @@ textarea:focus {
 }
 
 
+#output.loading::before {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    border: 3px solid #3b82f6;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
