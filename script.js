@@ -1,6 +1,15 @@
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.worker.min.js';
+
+// Dynamically load Tesseract.js
+const tesseractScript = document.createElement('script');
+tesseractScript.src = 'https://unpkg.com/tesseract.js@5.0.4/dist/tesseract.min.js';
+document.head.appendChild(tesseractScript);
+
 let pdf;
 let currentPage = 1;
+let isImage = false;
 
+document.getElementById("uploadResume").accept = 'application/pdf,image/png,image/jpeg';
 function updatePageInfo() {
     const pageInfo = document.getElementById("pageInfo");
     pageInfo.innerText = `${currentPage} / ${pdf.numPages}`;
@@ -47,7 +56,7 @@ document.getElementById("resumeForm").addEventListener("submit", (event) => {
     const jobDescription = document.getElementById("jobDescription").value;
 
     if (!resumeText.trim()) {
-        alert('No text was extracted from your PDF. Try with a different file.');
+        alert('No text was extracted from your file. Try with a different file.');
         return;
     }
 
@@ -107,6 +116,32 @@ document.getElementById("resumeForm").addEventListener("submit", (event) => {
     }
     atsScore += clarityScore;
 
+    // Generate resume improvement suggestions
+    const suggestions = [];
+    if (keywordScore < 50) {
+        suggestions.push(jobDescription ?
+            'Incorporate more keywords from the job description, such as skills, tools, or qualifications mentioned, to improve keyword match.' :
+            'Provide a job description to better tailor your resume with relevant keywords.');
+    }
+    if (lengthScore < 20) {
+        if (wordCount < 200) {
+            suggestions.push('Expand your resume to include more details about your experience, skills, or achievements, aiming for 300–750 words.');
+        } else if (wordCount >= 200 && wordCount < 300) {
+            suggestions.push('Add more content, such as additional accomplishments or certifications, to reach the optimal 300–750 word range.');
+        } else if (wordCount > 750) {
+            suggestions.push('Condense your resume by removing less relevant details or summarizing lengthy sections, targeting 300–750 words.');
+        }
+    }
+    if (formattingScore < 20) {
+        suggestions.push('Simplify formatting by removing complex symbols (e.g., ★, ♦), tables, or unusual layouts to ensure ATS compatibility.');
+    }
+    if (clarityScore < 10) {
+        suggestions.push('Replace non-standard characters (e.g., special symbols or emojis) with standard text to improve readability for ATS systems.');
+    }
+    if (atsScore >= 80 && suggestions.length === 0) {
+        suggestions.push('Your resume is well-optimized for ATS systems; consider highlighting quantifiable achievements to further stand out.');
+    }
+
     // Determine progress bar color
     const barColor = atsScore >= 80 ? '#10b981' : atsScore >= 60 ? '#f59e0b' : '#ef4444';
 
@@ -117,7 +152,7 @@ document.getElementById("resumeForm").addEventListener("submit", (event) => {
     const output = document.getElementById("output");
     let aiResponse = '';
 
-    // Initial output with ATS score and "Analyzing with AI..."
+    // Initial output with ATS score, breakdown, suggestions, and "Analyzing with AI..."
     output.innerHTML = `
         <div style="margin-bottom: 16px;">
             <p style="font-size: 1.5rem; font-weight: 600; color: #1f2937;">ATS Score: ${Math.round(atsScore)}/100</p>
@@ -126,6 +161,10 @@ document.getElementById("resumeForm").addEventListener("submit", (event) => {
             </div>
             <ul style="margin-top: 8px; color: #4b5563; list-style: disc; padding-left: 20px;">
                 ${atsBreakdown.map(item => `<li>${item}</li>`).join('')}
+            </ul>
+            <p style="font-size: 1.125rem; font-weight: 500; color: #1f2937; margin-top: 16px;">Suggestions to Improve Your Resume:</p>
+            <ul style="margin-top: 8px; color: #4b5563; list-style: disc; padding-left: 20px;">
+                ${suggestions.map(item => `<li>${item}</li>`).join('')}
             </ul>
         </div>
         <div id="ai-output" style="color: #4b5563; white-space: pre-wrap;">Analyzing with AI...</div>
@@ -146,16 +185,20 @@ document.getElementById("resumeForm").addEventListener("submit", (event) => {
         aiResponse += event.data;
         output.innerHTML = `
             <div style="margin-bottom: 16px;">
-                <p style="font-size: 1.5rem; font-weight: 600; color:rgb(35, 41, 48);">ATS Score: ${Math.round(atsScore)}/100</p>
+                <p style="font-size: 1.5rem; font-weight: 600; color: #1f2937;">ATS Score: ${Math.round(atsScore)}/100</p>
                 <div style="height: 12px; border-radius: 6px; background: #e5e7eb; overflow: hidden;">
                     <div style="width: ${atsScore}%; height: 100%; background: ${barColor}; transition: width 0.5s ease;"></div>
                 </div>
-                <ul style="margin-top: 8px; color:rgb(50, 55, 63); list-style: disc; padding-left: 20px;">
+                <ul style="margin-top: 8px; color: #4b5563; list-style: disc; padding-left: 20px;">
                     ${atsBreakdown.map(item => `<li>${item}</li>`).join('')}
                 </ul>
+                <p style="font-size: 1.125rem; font-weight: 500; color: #1f2937; margin-top: 16px;">Suggestions to Improve Your Resume:</p>
+                <ul style="margin-top: 8px; color: #4b5563; list-style: disc; padding-left: 20px;">
+                    ${suggestions.map(item => `<li>${item}</li>`).join('')}
+                </ul>
             </div>
-            <h2>AI Response:</h2><br>
-            <div id="ai-output" style="color:rgb(29, 24, 24); white-space: pre-wrap;">${aiResponse}</div>
+            <h2 style="font-size: 1.25rem; font-weight: 600; color: #1f2937;">AI Response:</h2>
+            <div id="ai-output" style="color: #1d1818; white-space: pre-wrap;">${aiResponse}</div>
         `;
     });
 
@@ -177,16 +220,49 @@ document.getElementById("uploadResume").addEventListener("change", async (event)
     if (!file) return;
 
     try {
-        const pdfBuffer = await file.arrayBuffer();
-        pdf = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
+        const pdfPreview = document.getElementById("pdfPreview");
+        pdfPreview.innerHTML = '';
+        isImage = file.type.startsWith('image/');
+
         let extractedText = '';
 
-        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-            const page = await pdf.getPage(pageNumber);
-            const textContent = await page.getTextContent();
-            const pageText = textContent.items.map(item => item.str).join(' ');
+        if (isImage) {
+            // Handle image file with Tesseract.js
+            if (typeof Tesseract === 'undefined') {
+                throw new Error('Tesseract.js not loaded. Please try again later.');
+            }
 
-            extractedText += `${pageText} `;
+            pdfPreview.innerHTML = 'Processing image...';
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+            await new Promise((resolve) => {
+                img.onload = resolve;
+            });
+
+            const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+                logger: (m) => console.log(m)
+            });
+            extractedText = text.trim();
+
+            pdfPreview.innerHTML = '';
+            pdfPreview.appendChild(img);
+        } else {
+            // Handle PDF file
+            const pdfBuffer = await file.arrayBuffer();
+            pdf = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
+
+            for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+                const page = await pdf.getPage(pageNumber);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(item => item.str).join(' ');
+                extractedText += `${pageText} `;
+            }
+
+            // Display PDF preview
+            currentPage = 1;
+            await updatePdfView();
         }
 
         document.getElementById("resume").value = extractedText.trim();
@@ -196,21 +272,23 @@ document.getElementById("uploadResume").addEventListener("change", async (event)
         document.getElementById("uploadResume").classList.add("hidden");
         document.getElementById("analyzeButton").classList.remove("hidden");
 
-        // Display the PDF preview
-        currentPage = 1;
-        await updatePdfView();
-
-        // Show the previous/next buttons and page info, if resume has more than 1 page
-        if (pdf.numPages > 1) {
-            document.getElementById("previousButton").classList.remove("hidden");
-            document.getElementById("nextButton").classList.remove("hidden");
-        } else {
+        // Show/hide navigation buttons
+        if (isImage || pdf.numPages === 1) {
             document.getElementById("previousButton").classList.add("hidden");
             document.getElementById("nextButton").classList.add("hidden");
+            document.getElementById("pageInfo").classList.add("hidden");
+        } else {
+            document.getElementById("previousButton").classList.remove("hidden");
+            document.getElementById("nextButton").classList.remove("hidden");
+            document.getElementById("pageInfo").classList.remove("hidden");
         }
 
     } catch (error) {
-        console.error('Error extracting text from PDF', error);
-        alert("Oops, we couldn't extract text from this PDF. Please try another file.");
+        console.error('Error extracting text from file', error);
+        alert(`Oops, we couldn't extract text from this ${isImage ? 'image' : 'PDF'}. Please try another file.`);
+        document.getElementById("pdfPreview").innerHTML = 'File preview will appear here...';
+        document.getElementById("resume").value = '';
+        document.getElementById("uploadResume").classList.remove("hidden");
     }
 });
+
